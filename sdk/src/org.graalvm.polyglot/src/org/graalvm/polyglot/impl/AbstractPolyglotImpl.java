@@ -218,6 +218,8 @@ public abstract class AbstractPolyglotImpl {
 
         public abstract List<Object> getTargetMappings(HostAccess access);
 
+        public abstract List<Object> getTargetProxyMappings(HostAccess access);
+
         public abstract boolean allowsAccess(HostAccess access, AnnotatedElement element);
 
         public abstract boolean allowsImplementation(HostAccess access, Class<?> type);
@@ -727,6 +729,8 @@ public abstract class AbstractPolyglotImpl {
 
         public abstract <T> Function<?, ?> toFunction(Object internalContext, Object function, Class<?> returnClass, Type returnType, Class<?> paramClass, Type paramType);
 
+        public abstract Object toMappedObjectProxy(Object internalContext, Class<?> clazz, Object obj, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) throws IllegalArgumentException;
+
         public abstract Object toObjectProxy(Object internalContext, Class<?> clazz, Object obj) throws IllegalArgumentException;
 
         public abstract <T> T toFunctionProxy(Object internalContext, Class<T> functionalType, Object function);
@@ -1121,6 +1125,10 @@ public abstract class AbstractPolyglotImpl {
 
     public Value asValue(Object o) {
         return getNext().asValue(o);
+    }
+
+    public Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) {
+        return getNext().newProxyTargetType(from, to, executables, instanciables, fields);
     }
 
     public <S, T> Object newTargetTypeMapping(Class<S> sourceType, Class<T> targetType, Predicate<S> acceptsValue, Function<S, T> convertValue, TargetMappingPrecedence precedence) {

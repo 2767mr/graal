@@ -827,6 +827,11 @@ public final class Engine implements AutoCloseable {
         }
 
         @Override
+        public List<Object> getTargetProxyMappings(HostAccess access) {
+            return access.getTargetProxyMappings();
+        }
+
+        @Override
         public boolean isArrayAccessible(HostAccess access) {
             return access.allowArrayAccess;
         }
@@ -1073,6 +1078,11 @@ public final class Engine implements AutoCloseable {
         @Override
         public ThreadScope createThreadScope() {
             return null;
+        }
+
+        @Override
+        public Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) {
+            return new Object();
         }
 
         @Override

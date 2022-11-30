@@ -96,6 +96,7 @@ public final class HostAccess {
     private final EconomicSet<AnnotatedElement> members;
     private final EconomicSet<Class<?>> implementableTypes;
     private final List<Object> targetMappings;
+    private final List<Object> targetProxyMappings;
     final boolean allowPublic;
     private final boolean allowAllInterfaceImplementations;
     private final boolean allowAllClassImplementations;
@@ -112,7 +113,7 @@ public final class HostAccess {
     private final EconomicSet<Executable> disableMethodScoping;
     volatile Object impl;
 
-    private static final HostAccess EMPTY = new HostAccess(null, null, null, null, null, null, null, false, false, false, false, false, false, false, false, false, false,
+    private static final HostAccess EMPTY = new HostAccess(null, null, null, null, null, null, null, null, false, false, false, false, false, false, false, false, false, false,
                     null, false, null, null);
 
     /**
@@ -258,7 +259,7 @@ public final class HostAccess {
 
     HostAccess(EconomicSet<Class<? extends Annotation>> annotations, EconomicMap<Class<?>, Boolean> excludeTypes, EconomicSet<AnnotatedElement> members,
                     EconomicSet<Class<? extends Annotation>> implementableAnnotations,
-                    EconomicSet<Class<?>> implementableTypes, List<Object> targetMappings,
+                    EconomicSet<Class<?>> implementableTypes, List<Object> targetMappings, List<Object> targetProxyMappings,
                     String name,
                     boolean allowPublic, boolean allowAllImplementations, boolean allowAllClassImplementations, boolean allowArrayAccess, boolean allowListAccess, boolean allowBufferAccess,
                     boolean allowIterableAccess, boolean allowIteratorAccess, boolean allowMapAccess, boolean allowAccessInheritance, MutableTargetMapping[] allowMutableTargetMappings,
@@ -270,6 +271,7 @@ public final class HostAccess {
         this.implementableAnnotations = copySet(implementableAnnotations, Equivalence.IDENTITY);
         this.implementableTypes = copySet(implementableTypes, Equivalence.IDENTITY);
         this.targetMappings = targetMappings != null ? new ArrayList<>(targetMappings) : null;
+        this.targetProxyMappings = targetProxyMappings != null ? new ArrayList<>(targetProxyMappings) : null;
         this.name = name;
         this.allowPublic = allowPublic;
         this.allowAllInterfaceImplementations = allowAllImplementations;
@@ -311,6 +313,7 @@ public final class HostAccess {
                         && equalsSet(implementableAnnotations, other.implementableAnnotations)//
                         && equalsSet(implementableTypes, other.implementableTypes)//
                         && Objects.equals(targetMappings, other.targetMappings)//
+                        && Objects.equals(targetProxyMappings, other.targetProxyMappings)//
                         && equalsSet(accessAnnotations, other.accessAnnotations)//
                         && Arrays.equals(allowMutableTargetMappings, other.allowMutableTargetMappings);
     }
@@ -336,6 +339,7 @@ public final class HostAccess {
                         hashSet(implementableTypes),
                         hashSet(members),
                         targetMappings,
+                        targetProxyMappings,
                         hashSet(accessAnnotations));
     }
 
@@ -440,6 +444,10 @@ public final class HostAccess {
 
     List<Object> getTargetMappings() {
         return targetMappings;
+    }
+
+    List<Object> getTargetProxyMappings() {
+        return targetProxyMappings;
     }
 
     boolean allowsImplementation(Class<?> type) {
@@ -697,6 +705,7 @@ public final class HostAccess {
         private EconomicSet<Class<?>> implementableTypes;
         private EconomicSet<AnnotatedElement> members;
         private List<Object> targetMappings;
+        private List<Object> targetProxyMappings;
         private boolean allowPublic;
         private boolean allowArrayAccess;
         private boolean allowListAccess;
@@ -723,6 +732,7 @@ public final class HostAccess {
             this.implementationAnnotations = copySet(access.implementableAnnotations, Equivalence.IDENTITY);
             this.implementableTypes = copySet(access.implementableTypes, Equivalence.IDENTITY);
             this.targetMappings = access.targetMappings != null ? new ArrayList<>(access.targetMappings) : null;
+            this.targetProxyMappings = access.targetProxyMappings != null ? new ArrayList<>(access.targetProxyMappings) : null;
             this.excludeTypes = access.excludeTypes;
             this.allowPublic = access.allowPublic;
             this.allowListAccess = access.allowListAccess;
@@ -1035,6 +1045,22 @@ public final class HostAccess {
             return this;
         }
 
+        public Builder targetTypeProxyMapping(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) {
+            Objects.requireNonNull(from);
+            Objects.requireNonNull(to);
+            Objects.requireNonNull(executables);
+            Objects.requireNonNull(instanciables);
+            Objects.requireNonNull(fields);
+            if (to.isPrimitive()) {
+                throw new IllegalArgumentException("Primitive target type is not supported as target mapping. Use boxed primitives instead.");
+            }
+            if (targetProxyMappings == null) {
+                targetProxyMappings = new ArrayList<>();
+            }
+            targetProxyMappings.add(Engine.getImpl().newProxyTargetType(from, to, executables, instanciables, fields));
+            return this;
+        }
+
         /**
          * Adds a custom source to target type mapping for Java host calls, host field assignments
          * and {@link Value#as(Class) explicit value conversions}. Method is equivalent to calling
@@ -1239,7 +1265,7 @@ public final class HostAccess {
          * @since 19.0
          */
         public HostAccess build() {
-            return new HostAccess(accessAnnotations, excludeTypes, members, implementationAnnotations, implementableTypes, targetMappings, name, allowPublic,
+            return new HostAccess(accessAnnotations, excludeTypes, members, implementationAnnotations, implementableTypes, targetMappings, targetProxyMappings, name, allowPublic,
                             allowAllImplementations, allowAllClassImplementations, allowArrayAccess, allowListAccess, allowBufferAccess, allowIterableAccess,
                             allowIteratorAccess, allowMapAccess, allowAccessInheritance, allowMutableTargetMappings, methodScopingDefault, disableMethodScopingAnnotations, disableMethodScoping);
         }

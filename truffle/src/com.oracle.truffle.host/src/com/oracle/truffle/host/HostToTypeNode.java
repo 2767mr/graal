@@ -164,6 +164,21 @@ abstract class HostToTypeNode extends Node {
     private static Object convertImpl(Node node, Object value, Class<?> targetType, Type genericType, boolean allowsImplementation, boolean primitiveTargetType,
                     HostContext context, InteropLibrary interop, boolean useCustomTargetTypes, HostTargetMappingNode targetMapping, InlinedBranchProfile error) {
         if (useCustomTargetTypes) {
+            //TODO: cache stuff
+            //get proxy mappings and apply them
+            if (context != null) {
+                var x = context.getHostClassCache().getProxyMappings(targetType);
+                for (var y : x) {
+                    if (HostToTypeNode.canConvert(value, y.from, y.from,
+                            allowsImplementation, context, HostToTypeNode.LOWEST, interop, null)) {
+                        Object convertedValue = convertImpl(value, y.from, y.from, allowsImplementation, primitiveTargetType, context, interop, false, targetMapping, error);
+
+                        return context.language.access.toObjectProxy(context.internalContext, targetType, convertedValue);
+                    }
+                }
+            }
+
+
             Object result = targetMapping.execute(node, value, targetType, context, interop, false, HIGHEST, STRICT);
             if (result != HostTargetMappingNode.NO_RESULT) {
                 return result;

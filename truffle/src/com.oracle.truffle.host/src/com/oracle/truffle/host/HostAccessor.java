@@ -40,6 +40,7 @@
  */
 package com.oracle.truffle.host;
 
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -134,6 +135,11 @@ final class HostAccessor extends Accessor {
         @Override
         public Object toDisconnectedHostProxy(Proxy hostValue) {
             return HostProxy.toProxyGuestObject(null, hostValue);
+        }
+
+        @Override
+        public Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) {
+            return new HostTargetProxyMapping(from, to, executables, instanciables, fields);
         }
 
         @Override

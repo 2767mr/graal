@@ -64,6 +64,7 @@ import com.oracle.truffle.api.TruffleOptions;
 final class HostClassCache {
 
     static final HostTargetMapping[] EMPTY_MAPPINGS = new HostTargetMapping[0];
+    static final HostTargetProxyMapping[] EMPTY_PROXY_MAPPINGS = new HostTargetProxyMapping[0];
 
     private final APIAccess apiAccess;
     final HostAccess hostAccess;
@@ -77,6 +78,7 @@ final class HostClassCache {
     final boolean allowsPublicAccess;
     final boolean allowsAccessInheritance;
     private final Map<Class<?>, Object> targetMappings;
+    private final Map<Class<?>, Object> targetProxyMappings;
     private final Object unnamedModule;
     private final WeakReference<HostClassCache> weakHostClassRef = new WeakReference<>(this);
 
@@ -105,6 +107,7 @@ final class HostClassCache {
         this.allowsPublicAccess = apiAccess.allowsPublicAccess(hostAccess);
         this.allowsAccessInheritance = apiAccess.allowsAccessInheritance(hostAccess);
         this.targetMappings = groupMappings(apiAccess, conf);
+        this.targetProxyMappings = groupProxyMappings(apiAccess, conf);
         this.unnamedModule = HostContext.getUnnamedModule(classLoader);
     }
 
@@ -155,6 +158,45 @@ final class HostClassCache {
         return EMPTY_MAPPINGS;
     }
 
+    @TruffleBoundary
+    HostTargetProxyMapping[] getProxyMappings(Class<?> targetType) {
+        if (targetProxyMappings != null) {
+            Class<?> lookupType;
+            if (targetType.isPrimitive()) {
+                if (targetType == byte.class) {
+                    lookupType = Byte.class;
+                } else if (targetType == short.class) {
+                    lookupType = Short.class;
+                } else if (targetType == int.class) {
+                    lookupType = Integer.class;
+                } else if (targetType == long.class) {
+                    lookupType = Long.class;
+                } else if (targetType == float.class) {
+                    lookupType = Float.class;
+                } else if (targetType == double.class) {
+                    lookupType = Double.class;
+                } else if (targetType == boolean.class) {
+                    lookupType = Boolean.class;
+                } else if (targetType == char.class) {
+                    lookupType = Character.class;
+                } else if (targetType == void.class) {
+                    lookupType = Void.class;
+                } else {
+                    lookupType = null;
+                }
+            } else {
+                lookupType = targetType;
+            }
+            List<HostTargetProxyMapping> mappings = (List<HostTargetProxyMapping>)targetProxyMappings.get(lookupType);
+            if (mappings == null) {
+                return EMPTY_PROXY_MAPPINGS;
+            } else {
+                return mappings.toArray(HostTargetProxyMapping[]::new);
+            }
+        }
+        return EMPTY_PROXY_MAPPINGS;
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<Class<?>, Object> groupMappings(AbstractPolyglotImpl.APIAccess apiAccess, HostAccess conf) {
         List<Object> mappings = apiAccess.getTargetMappings(conf);
@@ -177,6 +219,26 @@ final class HostClassCache {
             Collections.sort(classMappings);
             object.setValue(classMappings.toArray(EMPTY_MAPPINGS));
         }
+        return localMappings;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<Class<?>, Object> groupProxyMappings(AbstractPolyglotImpl.APIAccess apiAccess, HostAccess conf) {
+        List<Object> mappings = apiAccess.getTargetProxyMappings(conf);
+        if (mappings == null) {
+            return null;
+        }
+        Map<Class<?>, Object> localMappings = new HashMap<>();
+        for (Object mapping : mappings) {
+            HostTargetProxyMapping map = (HostTargetProxyMapping) mapping;
+            List<HostTargetProxyMapping> list = (List<HostTargetProxyMapping>) localMappings.get(map.to);
+            if (list == null) {
+                list = new ArrayList<>();
+                localMappings.put(map.to, list);
+            }
+            list.add(map);
+        }
+
         return localMappings;
     }
 
