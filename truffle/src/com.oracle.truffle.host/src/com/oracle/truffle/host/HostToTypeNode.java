@@ -171,9 +171,9 @@ abstract class HostToTypeNode extends Node {
                 for (var y : x) {
                     if (HostToTypeNode.canConvert(value, y.from, y.from,
                             allowsImplementation, context, HostToTypeNode.LOWEST, interop, null)) {
-                        Object convertedValue = convertImpl(value, y.from, y.from, allowsImplementation, primitiveTargetType, context, interop, false, targetMapping, error);
+                        //Object convertedValue = convertImpl(value, y.from, y.from, allowsImplementation, primitiveTargetType, context, interop, false, targetMapping, error);
 
-                        return context.language.access.toObjectProxy(context.internalContext, targetType, convertedValue);
+                        return context.language.access.toMappedObjectProxy(context.internalContext, targetType, value, y.executables, y.instantiables, y.fields);
                     }
                 }
             }

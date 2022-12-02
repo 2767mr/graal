@@ -138,8 +138,8 @@ final class HostAccessor extends Accessor {
         }
 
         @Override
-        public Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) {
-            return new HostTargetProxyMapping(from, to, executables, instanciables, fields);
+        public Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields) {
+            return new HostTargetProxyMapping(from, to, executables, instantiables, fields);
         }
 
         @Override

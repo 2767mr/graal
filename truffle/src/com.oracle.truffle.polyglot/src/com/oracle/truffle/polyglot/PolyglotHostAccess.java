@@ -111,9 +111,9 @@ final class PolyglotHostAccess extends AbstractHostAccess {
     }
 
     @Override
-    public Object toMappedObjectProxy(Object internalContext, Class<?> clazz, Object obj, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) throws IllegalArgumentException {
+    public Object toMappedObjectProxy(Object internalContext, Class<?> clazz, Object obj, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields) throws IllegalArgumentException {
         PolyglotContextImpl context = (PolyglotContextImpl) internalContext;
-        return PolyglotMappedObjectProxyHandler.newProxyInstance(clazz, obj, context.getHostContext(), executables, instanciables, fields);
+        return PolyglotMappedObjectProxyHandler.newProxyInstance(clazz, obj, context.getHostContext(), executables, instantiables, fields);
     }
 
     @Override

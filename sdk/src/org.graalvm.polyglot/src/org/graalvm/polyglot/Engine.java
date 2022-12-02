@@ -1081,7 +1081,7 @@ public final class Engine implements AutoCloseable {
         }
 
         @Override
-        public Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instanciables, Map<String, String> fields) {
+        public Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields) {
             return new Object();
         }
 
