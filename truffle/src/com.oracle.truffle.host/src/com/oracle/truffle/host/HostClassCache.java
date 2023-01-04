@@ -187,11 +187,11 @@ final class HostClassCache {
             } else {
                 lookupType = targetType;
             }
-            List<HostTargetProxyMapping> mappings = (List<HostTargetProxyMapping>)targetProxyMappings.get(lookupType);
+            HostTargetProxyMapping[] mappings = (HostTargetProxyMapping[])targetProxyMappings.get(lookupType);
             if (mappings == null) {
                 return EMPTY_PROXY_MAPPINGS;
             } else {
-                return mappings.toArray(HostTargetProxyMapping[]::new);
+                return mappings;
             }
         }
         return EMPTY_PROXY_MAPPINGS;
@@ -239,6 +239,10 @@ final class HostClassCache {
             list.add(map);
         }
 
+        for (Entry<Class<?>, Object> object : localMappings.entrySet()) {
+            List<HostTargetProxyMapping> classMappings = ((List<HostTargetProxyMapping>) object.getValue());
+            object.setValue(classMappings.toArray(EMPTY_PROXY_MAPPINGS));
+        }
         return localMappings;
     }
 

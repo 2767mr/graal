@@ -124,8 +124,9 @@ abstract class HostToTypeNode extends Node {
                     @Cached("isPrimitiveTarget(cachedTargetType)") boolean primitiveTarget,
                     @Cached("allowsImplementation(context, targetType)") boolean allowsImplementation,
                     @Cached HostTargetMappingNode targetMapping,
+                    @Cached HostTargetProxyMappingNode targetProxyMapping,
                     @Cached InlinedBranchProfile error) {
-        return convertImpl(node, operand, cachedTargetType, genericType, allowsImplementation, primitiveTarget, context, interop, useCustomTargetTypes, targetMapping, error);
+        return convertImpl(operand, cachedTargetType, genericType, allowsImplementation, primitiveTarget, context, interop, useCustomTargetTypes, targetMapping, targetProxyMapping, error);
     }
 
     @TruffleBoundary
@@ -153,7 +154,7 @@ abstract class HostToTypeNode extends Node {
                         InteropLibrary.getUncached(operand),
                         useTargetMapping,
                         HostTargetMappingNode.getUncached(),
-                        InlinedBranchProfile.getUncached());
+                        BranchProfile.getUncached());
     }
 
     @TruffleBoundary
@@ -162,22 +163,12 @@ abstract class HostToTypeNode extends Node {
     }
 
     private static Object convertImpl(Node node, Object value, Class<?> targetType, Type genericType, boolean allowsImplementation, boolean primitiveTargetType,
-                    HostContext context, InteropLibrary interop, boolean useCustomTargetTypes, HostTargetMappingNode targetMapping, InlinedBranchProfile error) {
+                    HostContext context, InteropLibrary interop, boolean useCustomTargetTypes, HostTargetMappingNode targetMapping, HostTargetProxyMappingNode targetProxyMapping, BranchProfile error) {
         if (useCustomTargetTypes) {
-            //TODO: cache stuff
-            //get proxy mappings and apply them
-            if (context != null) {
-                var x = context.getHostClassCache().getProxyMappings(targetType);
-                for (var y : x) {
-                    if (HostToTypeNode.canConvert(value, y.from, y.from,
-                            allowsImplementation, context, HostToTypeNode.LOWEST, interop, null)) {
-                        //Object convertedValue = convertImpl(value, y.from, y.from, allowsImplementation, primitiveTargetType, context, interop, false, targetMapping, error);
-
-                        return context.language.access.toMappedObjectProxy(context.internalContext, targetType, value, y.executables, y.instantiables, y.fields);
-                    }
-                }
+            Object proxyResult = targetProxyMapping.execute(value, targetType, context, interop, false, HIGHEST, STRICT);
+            if (proxyResult != HostTargetProxyMappingNode.NO_RESULT) {
+                return proxyResult;
             }
-
 
             Object result = targetMapping.execute(node, value, targetType, context, interop, false, HIGHEST, STRICT);
             if (result != HostTargetMappingNode.NO_RESULT) {

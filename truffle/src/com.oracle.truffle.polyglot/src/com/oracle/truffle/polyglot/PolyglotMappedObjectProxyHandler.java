@@ -74,6 +74,7 @@ import java.util.Objects;
 final class PolyglotMappedObjectProxyHandler implements InvocationHandler, PolyglotWrapper {
 
     static final Object[] EMPTY = {};
+    static final MappedObjectProxyComperator comperator = new MappedObjectProxyComperator();
 
     final Object obj;
     final PolyglotLanguageContext languageContext;
@@ -122,6 +123,37 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
         return Proxy.newProxyInstance(clazz.getClassLoader(), new Class<?>[]{clazz}, new PolyglotMappedObjectProxyHandler(obj, languageContext, clazz, executables, instantiables, fields));
     }
 
+    static final class MappedObjectProxyComperator {
+        Class<?> receiverClass;
+        Class<?> interfaceType;
+
+        public void setTypes(Class<?> receiverClass, Class<?> interfaceType) {
+            this.receiverClass = receiverClass;
+            this.interfaceType = interfaceType;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 31 * result + Objects.hashCode(receiverClass);
+            result = 31 * result + Objects.hashCode(interfaceType);
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof MappedObjectProxyNode) {
+                MappedObjectProxyNode other = (MappedObjectProxyNode) obj;
+                return receiverClass == other.receiverClass && interfaceType == other.interfaceType;
+            } else if (obj instanceof MappedObjectProxyComperator) {
+                MappedObjectProxyComperator other = (MappedObjectProxyComperator) obj;
+                return receiverClass == other.receiverClass && interfaceType == other.interfaceType;
+            } else {
+                return false;
+            }
+        }
+    }
+
     static final class MappedObjectProxyNode extends HostToGuestRootNode {
 
         final Class<?> receiverClass;
@@ -166,17 +198,22 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
 
         @Override
         public boolean equals(Object obj) {
-            if (!(obj instanceof MappedObjectProxyNode)) {
+            if (obj instanceof MappedObjectProxyNode) {
+                MappedObjectProxyNode other = (MappedObjectProxyNode) obj;
+                return receiverClass == other.receiverClass && interfaceType == other.interfaceType;
+            } else if (obj instanceof MappedObjectProxyComperator) {
+                MappedObjectProxyComperator other = (MappedObjectProxyComperator) obj;
+                return receiverClass == other.receiverClass && interfaceType == other.interfaceType;
+            } else {
                 return false;
             }
-            MappedObjectProxyNode other = (MappedObjectProxyNode) obj;
-            return receiverClass == other.receiverClass && interfaceType == other.interfaceType;
         }
 
         static CallTarget lookup(PolyglotLanguageContext languageContext, Class<?> receiverClass, Class<?> interfaceClass, UnmodifiableEconomicMap<String, String> executables, UnmodifiableEconomicMap<String, String> instantiables, UnmodifiableEconomicMap<String, String> fields) {
-            MappedObjectProxyNode node = new MappedObjectProxyNode(languageContext.getLanguageInstance(), receiverClass, interfaceClass, executables, instantiables, fields);
-            CallTarget target = lookupHostCodeCache(languageContext, node, CallTarget.class);
+            comperator.setTypes(receiverClass, interfaceClass);
+            CallTarget target = lookupHostCodeCache(languageContext, comperator, CallTarget.class);
             if (target == null) {
+                MappedObjectProxyNode node = new MappedObjectProxyNode(languageContext.getLanguageInstance(), receiverClass, interfaceClass, executables, instantiables, fields);
                 target = installHostCodeCache(languageContext, node, node.getCallTarget(), CallTarget.class);
             }
             return target;

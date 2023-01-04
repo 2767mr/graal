@@ -53,6 +53,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 
+import com.oracle.truffle.api.interop.TruffleObject;
+import com.oracle.truffle.api.strings.AbstractTruffleString;
+import com.oracle.truffle.api.strings.TruffleString;
 import org.graalvm.collections.EconomicSet;
 
 import com.oracle.truffle.api.Assumption;
@@ -96,8 +99,28 @@ abstract class DynamicObjectLibraryImpl {
             return key == cachedKey;
         } else if (cachedKey instanceof Long) {
             return key instanceof Long && ((Long) cachedKey).equals(key);
+        } else if (cachedKey == key) {
+            return true;
+        } else if (cachedKey instanceof TruffleString) {
+            return (key instanceof AbstractTruffleString) && ((TruffleString) cachedKey).equals(key);
         } else {
-            return cachedKey == key || keyEqualsBoundary(cachedKey, key);
+            return keyEqualsBoundary(cachedKey, key);
+        }
+    }
+
+    static boolean keyEqualsCached(Object cachedKey, Object key, TruffleString.EqualNode equalNode) {
+        if (cachedKey instanceof String) {
+            return cachedKey == key || (key instanceof String && ((String) cachedKey).equals(key));
+        } else if (cachedKey instanceof HiddenKey) {
+            return key == cachedKey;
+        } else if (cachedKey instanceof Long) {
+            return key instanceof Long && ((Long) cachedKey).equals(key);
+        } else if (cachedKey == key) {
+            return true;
+        } else if (cachedKey instanceof TruffleString) {
+            return (key instanceof AbstractTruffleString) && equalNode.execute((TruffleString) cachedKey, (AbstractTruffleString) key, TruffleString.Encoding.BYTES);
+        } else {
+            return keyEqualsBoundary(cachedKey, key);
         }
     }
 
@@ -960,12 +983,18 @@ abstract class DynamicObjectLibraryImpl {
 
     abstract static class SpecificKey extends KeyCacheEntry {
         final Object cachedKey;
+        final TruffleString.EqualNode equalNode;
 
         @CompilationFinal MutateCacheData cache;
 
         SpecificKey(Object key, KeyCacheEntry next) {
             super(next);
             this.cachedKey = key;
+            if (this.cachedKey instanceof TruffleString) {
+                this.equalNode = TruffleString.EqualNode.create();
+            } else {
+                this.equalNode = null;
+            }
         }
 
         static SpecificKey create(Object key, Shape shape, KeyCacheEntry next, boolean useIdentity) {
@@ -994,7 +1023,7 @@ abstract class DynamicObjectLibraryImpl {
 
         @Override
         public boolean acceptsKey(Object key) {
-            return keyEquals(cachedKey, key);
+            return keyEqualsCached(cachedKey, key, equalNode);
         }
 
         static class ExistingKey extends SpecificKey {
