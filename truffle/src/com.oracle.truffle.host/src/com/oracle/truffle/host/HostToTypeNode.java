@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import com.oracle.truffle.api.profiles.BranchProfile;
 import org.graalvm.polyglot.HostAccess.MutableTargetMapping;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
@@ -126,7 +127,7 @@ abstract class HostToTypeNode extends Node {
                     @Cached HostTargetMappingNode targetMapping,
                     @Cached HostTargetProxyMappingNode targetProxyMapping,
                     @Cached InlinedBranchProfile error) {
-        return convertImpl(operand, cachedTargetType, genericType, allowsImplementation, primitiveTarget, context, interop, useCustomTargetTypes, targetMapping, targetProxyMapping, error);
+        return convertImpl(node, operand, cachedTargetType, genericType, allowsImplementation, primitiveTarget, context, interop, useCustomTargetTypes, targetMapping, targetProxyMapping, error);
     }
 
     @TruffleBoundary
@@ -154,7 +155,8 @@ abstract class HostToTypeNode extends Node {
                         InteropLibrary.getUncached(operand),
                         useTargetMapping,
                         HostTargetMappingNode.getUncached(),
-                        BranchProfile.getUncached());
+                        HostTargetProxyMappingNode.getUncached(),
+                        InlinedBranchProfile.getUncached());
     }
 
     @TruffleBoundary
@@ -163,9 +165,9 @@ abstract class HostToTypeNode extends Node {
     }
 
     private static Object convertImpl(Node node, Object value, Class<?> targetType, Type genericType, boolean allowsImplementation, boolean primitiveTargetType,
-                    HostContext context, InteropLibrary interop, boolean useCustomTargetTypes, HostTargetMappingNode targetMapping, HostTargetProxyMappingNode targetProxyMapping, BranchProfile error) {
+                    HostContext context, InteropLibrary interop, boolean useCustomTargetTypes, HostTargetMappingNode targetMapping, HostTargetProxyMappingNode targetProxyMapping, InlinedBranchProfile error) {
         if (useCustomTargetTypes) {
-            Object proxyResult = targetProxyMapping.execute(value, targetType, context, interop, false, HIGHEST, STRICT);
+            Object proxyResult = targetProxyMapping.execute(node, value, targetType, context, interop, false, HIGHEST, STRICT);
             if (proxyResult != HostTargetProxyMappingNode.NO_RESULT) {
                 return proxyResult;
             }

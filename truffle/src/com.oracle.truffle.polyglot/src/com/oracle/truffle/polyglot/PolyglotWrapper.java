@@ -41,6 +41,7 @@
 package com.oracle.truffle.polyglot;
 
 import java.lang.reflect.Proxy;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.interop.InteropLibrary;
