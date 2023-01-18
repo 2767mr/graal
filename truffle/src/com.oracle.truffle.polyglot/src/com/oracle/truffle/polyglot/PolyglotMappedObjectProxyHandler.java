@@ -270,8 +270,8 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
                                         @Cached("getMethodGenericReturnType(method)") Type returnType,
                                         @Exclusive @CachedLibrary("receiver") InteropLibrary receivers,
                                         @Shared("cachedMembersLib") @CachedLibrary(limit = "LIMIT") InteropLibrary members,
-                                        @Exclusive() @Cached PolyglotToHostNode toHost,
-                                        @Shared("errors") @Cached InlinedBranchProfile error) {
+                                        @Exclusive @Cached PolyglotToHostNode toHost,
+                                        @Exclusive @Cached InlinedBranchProfile error) {
             Object result = invoke(node, languageContext, receiver, arguments, name, receivers, members, error);
             return toHost.execute(node, languageContext, result, returnClass, returnType);
         }
@@ -287,7 +287,7 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
                                        @Cached("getMethodGenericReturnType(method)") Type returnType,
                                        @Exclusive @CachedLibrary("receiver") InteropLibrary receivers,
                                        @Exclusive @Cached PolyglotToHostNode toHost,
-                                       @Shared("errors") @Cached InlinedBranchProfile error) {
+                                       @Exclusive @Cached InlinedBranchProfile error) {
             Object result = getField(node, languageContext, receiver, arguments, name, receivers, error);
             return toHost.execute(node, languageContext, result, returnClass, returnType);
         }
@@ -304,7 +304,7 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
                                               @Exclusive @CachedLibrary("receiver") InteropLibrary receivers,
                                               @Shared("cachedMembersLib") @CachedLibrary(limit = "LIMIT") InteropLibrary members,
                                               @Exclusive @Cached PolyglotToHostNode toHost,
-                                              @Shared("errors") @Cached InlinedBranchProfile error) {
+                                              @Exclusive @Cached InlinedBranchProfile error) {
             Object result = instantiate(node, languageContext, receiver, arguments, name, receivers, members, error);
             return toHost.execute(node, languageContext, result, returnClass, returnType);
         }
@@ -321,7 +321,7 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
                                    @Shared("cachedMembersLib") @CachedLibrary(limit = "LIMIT") InteropLibrary members,
                                    @Cached InlinedConditionProfile branchProfile,
                                    @Exclusive @Cached  PolyglotToHostNode toHost,
-                                   @Shared("errors") @Cached @Cached.Exclusive()  InlinedBranchProfile error) {
+                                   @Exclusive @Cached InlinedBranchProfile error) {
             Object result = invokeOrExecute(node, languageContext, receiver, arguments, name, receivers, members, branchProfile, error);
             return toHost.execute(node, languageContext, result, returnClass, returnType);
         }
