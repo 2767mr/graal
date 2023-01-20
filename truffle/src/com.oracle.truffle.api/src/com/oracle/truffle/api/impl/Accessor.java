@@ -293,7 +293,7 @@ public abstract class Accessor {
 
         public abstract Object toDisconnectedHostProxy(Proxy hostValue);
 
-        public abstract Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields);
+        public abstract Object newProxyTargetType(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> getters, Map<String, String> setters);
 
         public abstract <S, T> Object newTargetTypeMapping(Class<S> sourceType, Class<T> targetType, Predicate<S> acceptsValue, Function<S, T> convertValue, TargetMappingPrecedence precedence);
 

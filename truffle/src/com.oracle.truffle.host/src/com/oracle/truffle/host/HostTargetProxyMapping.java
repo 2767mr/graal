@@ -47,13 +47,15 @@ final class HostTargetProxyMapping {
     final Class<?> to;
     final Map<String, String> executables;
     final Map<String, String> instantiables;
-    final Map<String, String> fields;
+    final Map<String, String> getters;
+    final Map<String, String> setters;
 
-    HostTargetProxyMapping(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields) {
+    HostTargetProxyMapping(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> getters, Map<String, String> setters) {
         this.from = from;
         this.to = to;
         this.executables = executables;
         this.instantiables = instantiables;
-        this.fields = fields;
+        this.getters = getters;
+        this.setters = setters;
     }
 }

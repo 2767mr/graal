@@ -141,7 +141,7 @@ abstract class HostTargetProxyMappingNode extends Node {
                                    @Cached(value = "allowsImplementation(context, cachedMapping.from)", allowUncached = true, neverDefault = false) boolean allowsImplementation) {
             if (HostToTypeNode.canConvert(node, receiver, cachedMapping.from, cachedMapping.from,
                     allowsImplementation, context, HostToTypeNode.LOWEST, interop, null)) {
-                return context.language.access.toMappedObjectProxy(context.internalContext, cachedMapping.to, receiver, cachedMapping.executables, cachedMapping.instantiables, cachedMapping.fields);
+                return context.language.access.toMappedObjectProxy(context.internalContext, cachedMapping.to, receiver, cachedMapping.executables, cachedMapping.instantiables, cachedMapping.getters, cachedMapping.setters);
             }
             return NO_RESULT;
         }

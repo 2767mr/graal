@@ -1045,19 +1045,20 @@ public final class HostAccess {
             return this;
         }
 
-        public Builder targetTypeProxyMapping(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields) {
+        public Builder targetTypeProxyMapping(Class<?> from, Class<?> to, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> getters, Map<String, String> setters) {
             Objects.requireNonNull(from);
             Objects.requireNonNull(to);
             Objects.requireNonNull(executables);
             Objects.requireNonNull(instantiables);
-            Objects.requireNonNull(fields);
+            Objects.requireNonNull(getters);
+            Objects.requireNonNull(setters);
             if (to.isPrimitive()) {
                 throw new IllegalArgumentException("Primitive target type is not supported as target mapping. Use boxed primitives instead.");
             }
             if (targetProxyMappings == null) {
                 targetProxyMappings = new ArrayList<>();
             }
-            targetProxyMappings.add(Engine.getImpl().newProxyTargetType(from, to, executables, instantiables, fields));
+            targetProxyMappings.add(Engine.getImpl().newProxyTargetType(from, to, executables, instantiables, getters, setters));
             return this;
         }
 

@@ -45,7 +45,6 @@ import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
-import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.dsl.Bind;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.Cached.Exclusive;
@@ -63,16 +62,13 @@ import com.oracle.truffle.api.profiles.InlinedBranchProfile;
 import com.oracle.truffle.api.profiles.InlinedConditionProfile;
 import com.oracle.truffle.polyglot.PolyglotLanguageContext.ToGuestValuesNode;
 import com.oracle.truffle.polyglot.PolyglotMappedObjectProxyHandlerFactory.MappedObjectProxyNodeGen;
-import org.graalvm.collections.EconomicMap;
 import org.graalvm.collections.EconomicMapWrap;
 import org.graalvm.collections.UnmodifiableEconomicMap;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -85,10 +81,10 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
     final PolyglotLanguageContext languageContext;
     final CallTarget invoke;
 
-    PolyglotMappedObjectProxyHandler(Object obj, PolyglotLanguageContext languageContext, Class<?> interfaceClass, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields) {
+    PolyglotMappedObjectProxyHandler(Object obj, PolyglotLanguageContext languageContext, Class<?> interfaceClass, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> getters, Map<String, String> setters) {
         this.obj = obj;
         this.languageContext = languageContext;
-        this.invoke = MappedObjectProxyNode.lookup(languageContext, obj.getClass(), interfaceClass, new EconomicMapWrap<>(executables), new EconomicMapWrap<>(instantiables), new EconomicMapWrap<>(fields));
+        this.invoke = MappedObjectProxyNode.lookup(languageContext, obj.getClass(), interfaceClass, new EconomicMapWrap<>(executables), new EconomicMapWrap<>(instantiables), new EconomicMapWrap<>(getters), new EconomicMapWrap<>(setters));
     }
 
     @Override
@@ -124,8 +120,8 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
     }
 
     @TruffleBoundary
-    static Object newProxyInstance(Class<?> clazz, Object obj, PolyglotLanguageContext languageContext, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> fields) throws IllegalArgumentException {
-        return Proxy.newProxyInstance(clazz.getClassLoader(), new Class<?>[]{clazz}, new PolyglotMappedObjectProxyHandler(obj, languageContext, clazz, executables, instantiables, fields));
+    static Object newProxyInstance(Class<?> clazz, Object obj, PolyglotLanguageContext languageContext, Map<String, String> executables, Map<String, String> instantiables, Map<String, String> getters, Map<String, String> setters) throws IllegalArgumentException {
+        return Proxy.newProxyInstance(clazz.getClassLoader(), new Class<?>[]{clazz}, new PolyglotMappedObjectProxyHandler(obj, languageContext, clazz, executables, instantiables, getters, setters));
     }
 
     static final class MappedObjectProxyComperator {
@@ -166,17 +162,19 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
 
         final UnmodifiableEconomicMap<String, String> executables;
         final UnmodifiableEconomicMap<String, String> instantiables;
-        final UnmodifiableEconomicMap<String, String> fields;
+        final UnmodifiableEconomicMap<String, String> getters;
+        final UnmodifiableEconomicMap<String, String> setters;
 
 
-        MappedObjectProxyNode(PolyglotLanguageInstance languageInstance, Class<?> receiverType, Class<?> interfaceType, UnmodifiableEconomicMap<String, String> executables, UnmodifiableEconomicMap<String, String> instantiables, UnmodifiableEconomicMap<String, String> fields) {
+        MappedObjectProxyNode(PolyglotLanguageInstance languageInstance, Class<?> receiverType, Class<?> interfaceType, UnmodifiableEconomicMap<String, String> executables, UnmodifiableEconomicMap<String, String> instantiables, UnmodifiableEconomicMap<String, String> getters, UnmodifiableEconomicMap<String, String> setters) {
             super(languageInstance);
             this.receiverClass = receiverType;
             this.interfaceType = interfaceType;
 
             this.executables = executables;
             this.instantiables = instantiables;
-            this.fields = fields;
+            this.getters = getters;
+            this.setters = setters;
         }
 
         @SuppressWarnings("unchecked")
@@ -193,7 +191,7 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
         @Specialization
         static Object doDefault(PolyglotLanguageContext languageContext, Object receiver, Object[] args,
                                 @Bind("this") Node node,
-                                @Cached("create(executables, instantiables, fields)") MappedProxyInvokeNode proxyInvoke,
+                                @Cached("create(executables, instantiables, getters, setters)") MappedProxyInvokeNode proxyInvoke,
                                 @Cached ToGuestValuesNode toGuests) {
             Method method = (Method) args[ARGUMENT_OFFSET];
             Object[] arguments = toGuests.execute(node, languageContext, (Object[]) args[ARGUMENT_OFFSET + 1]);
@@ -221,11 +219,11 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
             }
         }
 
-        static CallTarget lookup(PolyglotLanguageContext languageContext, Class<?> receiverClass, Class<?> interfaceClass, UnmodifiableEconomicMap<String, String> executables, UnmodifiableEconomicMap<String, String> instantiables, UnmodifiableEconomicMap<String, String> fields) {
+        static CallTarget lookup(PolyglotLanguageContext languageContext, Class<?> receiverClass, Class<?> interfaceClass, UnmodifiableEconomicMap<String, String> executables, UnmodifiableEconomicMap<String, String> instantiables, UnmodifiableEconomicMap<String, String> getters, UnmodifiableEconomicMap<String, String> setters) {
             comperator.setTypes(receiverClass, interfaceClass);
             CallTarget target = lookupHostCodeCache(languageContext, comperator, CallTarget.class);
             if (target == null) {
-                MappedObjectProxyNode node = MappedObjectProxyNodeGen.create(languageContext.getLanguageInstance(), receiverClass, interfaceClass, executables, instantiables, fields);
+                MappedObjectProxyNode node = MappedObjectProxyNodeGen.create(languageContext.getLanguageInstance(), receiverClass, interfaceClass, executables, instantiables, getters, setters);
                 target = installHostCodeCache(languageContext, node, node.getCallTarget(), CallTarget.class);
             }
             return target;
@@ -235,13 +233,15 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
     abstract static class MappedProxyInvokeNode extends Node {
         final UnmodifiableEconomicMap<String, String> executables;
         final UnmodifiableEconomicMap<String, String> instantiables;
-        final UnmodifiableEconomicMap<String, String> fields;
+        final UnmodifiableEconomicMap<String, String> getters;
+        final UnmodifiableEconomicMap<String, String> setters;
 
-        MappedProxyInvokeNode(UnmodifiableEconomicMap<String, String> executables, UnmodifiableEconomicMap<String, String> instantiables, UnmodifiableEconomicMap<String, String> fields) {
+        MappedProxyInvokeNode(UnmodifiableEconomicMap<String, String> executables, UnmodifiableEconomicMap<String, String> instantiables, UnmodifiableEconomicMap<String, String> getters, UnmodifiableEconomicMap<String, String> setters) {
             super();
             this.executables = executables;
             this.instantiables = instantiables;
-            this.fields = fields;
+            this.getters = getters;
+            this.setters = setters;
         }
 
         public abstract Object execute(PolyglotLanguageContext languageContext, Object receiver, Method method, Object[] arguments);
@@ -276,20 +276,35 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
             return toHost.execute(node, languageContext, result, returnClass, returnType);
         }
 
-        @Specialization(guards = {"cachedMethod == method", "fields.containsKey(cachedMethodName)"}, limit = "LIMIT")
+        @Specialization(guards = {"cachedMethod == method", "getters.containsKey(cachedMethodName)"}, limit = "LIMIT")
         @SuppressWarnings({"unused", "truffle-static-method"})
-        protected Object doCachedField(PolyglotLanguageContext languageContext, Object receiver, Method method, Object[] arguments,
-                                       @Bind("this") Node node,
-                                       @Cached("method") Method cachedMethod,
-                                       @Cached("method.getName()") String cachedMethodName,
-                                       @Cached("fields.get(cachedMethodName)") String name,
-                                       @Cached("getMethodReturnType(method)") Class<?> returnClass,
-                                       @Cached("getMethodGenericReturnType(method)") Type returnType,
-                                       @Exclusive @CachedLibrary("receiver") InteropLibrary receivers,
-                                       @Exclusive @Cached PolyglotToHostNode toHost,
-                                       @Exclusive @Cached InlinedBranchProfile error) {
+        protected Object doCachedGetter(PolyglotLanguageContext languageContext, Object receiver, Method method, Object[] arguments,
+                                        @Bind("this") Node node,
+                                        @Cached("method") Method cachedMethod,
+                                        @Cached("method.getName()") String cachedMethodName,
+                                        @Cached("getters.get(cachedMethodName)") String name,
+                                        @Cached("getMethodReturnType(method)") Class<?> returnClass,
+                                        @Cached("getMethodGenericReturnType(method)") Type returnType,
+                                        @Exclusive @CachedLibrary("receiver") InteropLibrary receivers,
+                                        @Exclusive @Cached PolyglotToHostNode toHost,
+                                        @Exclusive @Cached InlinedBranchProfile error) {
             Object result = getField(node, languageContext, receiver, arguments, name, receivers, error);
             return toHost.execute(node, languageContext, result, returnClass, returnType);
+        }
+
+        @Specialization(guards = {"cachedMethod == method", "setters.containsKey(cachedMethodName)"}, limit = "LIMIT")
+        @SuppressWarnings({"unused", "truffle-static-method"})
+        protected void doCachedSetter(PolyglotLanguageContext languageContext, Object receiver, Method method, Object[] arguments,
+                                        @Bind("this") Node node,
+                                        @Cached("method") Method cachedMethod,
+                                        @Cached("method.getName()") String cachedMethodName,
+                                        @Cached("setters.get(cachedMethodName)") String name,
+                                        @Cached("getMethodReturnType(method)") Class<?> returnClass,
+                                        @Cached("getMethodGenericReturnType(method)") Type returnType,
+                                        @Exclusive @CachedLibrary("receiver") InteropLibrary receivers,
+                                        @Exclusive @Cached PolyglotToHostNode toHost,
+                                        @Exclusive @Cached InlinedBranchProfile error) {
+            setField(node, languageContext, receiver, arguments, name, receivers, error);
         }
 
         @Specialization(guards = {"cachedMethod == method", "instantiables.containsKey(cachedMethodName)"}, limit = "LIMIT")
@@ -309,7 +324,7 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
             return toHost.execute(node, languageContext, result, returnClass, returnType);
         }
 
-        @Specialization(guards = {"cachedMethod == method", "!executables.containsKey(name)", "!fields.containsKey(name)", "!instantiables.containsKey(name)"}, limit = "LIMIT")
+        @Specialization(guards = {"cachedMethod == method", "!executables.containsKey(name)", "!getters.containsKey(name)", "!setters.containsKey(name)", "!instantiables.containsKey(name)"}, limit = "LIMIT")
         @SuppressWarnings({"truffle-static-method"})
         protected Object unhandled(PolyglotLanguageContext languageContext, Object receiver, Method method, Object[] arguments,
                                    @Bind("this") Node node,
@@ -411,6 +426,25 @@ final class PolyglotMappedObjectProxyHandler implements InvocationHandler, Polyg
                 error.enter(node);
                 throw PolyglotInteropErrors.invokeUnsupported(polyglotContext, receiver, member);
             } catch (UnknownIdentifierException | UnsupportedMessageException e) {
+                error.enter(node);
+                throw PolyglotInteropErrors.invokeUnsupported(polyglotContext, receiver, member);
+            }
+        }
+
+        private void setField(Node node, PolyglotLanguageContext polyglotContext, Object receiver, Object[] arguments, String member, InteropLibrary receivers, InlinedBranchProfile error) {
+            if (arguments.length != 1) {
+                error.enter(node);
+                throw PolyglotInteropErrors.invokeUnsupported(polyglotContext, receiver, member);
+            }
+            try {
+                if (receivers.isMemberWritable(receiver, member)) {
+                    receivers.writeMember(receiver, member, arguments[0]);
+                    return;
+                }
+
+                error.enter(node);
+                throw PolyglotInteropErrors.invokeUnsupported(polyglotContext, receiver, member);
+            } catch (UnknownIdentifierException | UnsupportedMessageException | UnsupportedTypeException e) {
                 error.enter(node);
                 throw PolyglotInteropErrors.invokeUnsupported(polyglotContext, receiver, member);
             }
